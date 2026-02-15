@@ -159,46 +159,75 @@
 </div>
 
 <script>
-    const SB_URL = "https://qiwhpuqocmwcvkcxjfvf.supabase.co";
-    const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpd2hwdXFvY213Y3ZrY3hqZnZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExNTA3MTksImV4cCI6MjA4NjcyNjcxOX0.eqrNfszVkk9kq_03Cme0vjRo-nJuGdlPNxK_eIsI_Xw";
-    const supabase = lib.supabase.createClient(SB_URL, SB_KEY);
+    // Variables ko dobara declare hone se bachane ke liye hum block scope use karenge
+    (function() {
+        const SB_URL = "https://qiwhpuqocmwcvkcxjfvf.supabase.co";
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpd2hwdXFvY213Y3ZrY3hqZnZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExNTA3MTksImV4cCI6MjA4NjcyNjcxOX0.eqrNfszVkk9kq_03Cme0vjRo-nJuGdlPNxK_eIsI_Xw";
+        
+        // Check karein ki supabase pehle se globally toh nahi hai
+        if (typeof window.supabaseClient === 'undefined') {
+            window.supabaseClient = lib.supabase.createClient(SB_URL, SB_KEY);
+        }
+    })();
+
+    const supabase = window.supabaseClient;
     let currentUser = null;
     let isCheckedIn = false;
 
-    async function userLogin() {
+    // Login Function
+    window.userLogin = async function() {
         const id = document.getElementById('uID').value;
         const pass = document.getElementById('uPass').value;
-        const { data, error } = await supabase.from('employees').select('*').eq('employee_id', id).eq('password', pass).single();
         
-        if (data) {
+        if(!id || !pass) return alert("Please fill all fields");
+
+        const { data, error } = await supabase
+            .from('employees')
+            .select('*')
+            .eq('employee_id', id)
+            .eq('password', pass)
+            .single();
+        
+        if (error) {
+            console.error(error);
+            alert("Login Failed: Employee not found or wrong password");
+        } else if (data) {
             currentUser = data;
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('userName').innerText = data.name;
             checkTodayStatus();
-        } else alert("Access Denied!");
-    }
+        }
+    };
 
-    async function checkTodayStatus() {
+    window.checkTodayStatus = async function() {
         const today = new Date().toISOString().split('T')[0];
-        const { data } = await supabase.from('attendance').select('*').eq('employee_id', currentUser.employee_id).eq('date', today).single();
+        const { data } = await supabase
+            .from('attendance')
+            .select('*')
+            .eq('employee_id', currentUser.employee_id)
+            .eq('date', today)
+            .single();
         
         if (data) {
             isCheckedIn = !data.check_out;
             if(isCheckedIn) {
                 updateOrbUI(true);
             } else if (data.check_out) {
-                document.getElementById('orb').style.opacity = '0.5';
-                document.getElementById('orb').onclick = null;
-                document.getElementById('orbText').innerText = "SHIFT OVER";
+                const orb = document.getElementById('orb');
+                if(orb) {
+                    orb.style.opacity = '0.5';
+                    orb.onclick = null;
+                    document.getElementById('orbText').innerText = "SHIFT OVER";
+                }
             }
         }
-    }
+    };
 
     function updateOrbUI(active) {
         const orb = document.getElementById('orb');
         const icon = document.getElementById('orbIcon');
         const text = document.getElementById('orbText');
-        if(active) {
+        if(active && orb) {
             orb.classList.add('active');
             icon.className = "fas fa-stop-circle";
             icon.style.color = "#22c55e";
@@ -206,32 +235,40 @@
         }
     }
 
-    async function handleAttendance() {
+    window.handleAttendance = async function() {
+        if(!currentUser) return alert("Please login first");
+        
         const now = new Date();
         const today = now.toISOString().split('T')[0];
         
-        if (!isCheckedIn) {
-            // Check In Logic
-            await supabase.from('attendance').insert([{
-                employee_id: currentUser.employee_id,
-                check_in: now.toISOString(),
-                status: 'Present',
-                date: today
-            }]);
-        } else {
-            // Check Out Logic
-            await supabase.from('attendance').update({ check_out: now.toISOString() })
-            .eq('employee_id', currentUser.employee_id).eq('date', today);
+        try {
+            if (!isCheckedIn) {
+                await supabase.from('attendance').insert([{
+                    employee_id: currentUser.employee_id,
+                    check_in: now.toISOString(),
+                    status: 'Present',
+                    date: today
+                }]);
+            } else {
+                await supabase.from('attendance')
+                    .update({ check_out: now.toISOString() })
+                    .eq('employee_id', currentUser.employee_id)
+                    .eq('date', today);
+            }
+            location.reload();
+        } catch (e) {
+            alert("Error saving attendance");
         }
-        location.reload();
-    }
+    };
 
-    function showPage(id, el) {
+    window.showPage = function(id, el) {
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
         document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-        el.classList.add('active');
-    }
+        const targetPage = document.getElementById(id);
+        if(targetPage) targetPage.classList.add('active');
+        if(el) el.classList.add('active');
+    };
 </script>
 </body>
 </html>
+
