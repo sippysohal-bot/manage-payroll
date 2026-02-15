@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Employee Smart Portal</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --accent: #a855f7;
+            --bg: #f8fafc;
+            --card-bg: rgba(255, 255, 255, 0.8);
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            margin: 0; background: var(--bg); color: #1e293b;
+            padding-bottom: 100px;
+            background-image: radial-gradient(circle at top right, #e0e7ff, transparent), 
+                              radial-gradient(circle at bottom left, #f3e8ff, transparent);
+            background-attachment: fixed;
+        }
+
+        /* Modern Login */
+        #loginScreen {
+            position: fixed; inset: 0; background: white; z-index: 2000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 30px;
+        }
+        .login-box { width: 100%; max-width: 350px; text-align: center; }
+        .login-box h1 { font-size: 32px; font-weight: 800; margin-bottom: 10px; background: linear-gradient(to right, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        /* App Header */
+        .app-header {
+            padding: 30px 20px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .welcome-text h2 { margin: 0; font-size: 22px; font-weight: 800; }
+        .welcome-text p { margin: 0; color: #64748b; font-size: 14px; }
+
+        /* Dashboard Cards */
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 24px; margin: 15px; padding: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.03);
+        }
+
+        /* Circular Attendance UI */
+        .attendance-orb {
+            width: 200px; height: 200px; border-radius: 50%;
+            margin: 30px auto; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            background: white; border: 10px solid #f1f5f9;
+            box-shadow: 0 20px 40px rgba(99, 102, 241, 0.15);
+            position: relative; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .attendance-orb:active { transform: scale(0.92); }
+        .attendance-orb i { font-size: 50px; color: var(--primary); }
+        .attendance-orb.active { border-color: #dcfce7; }
+        .attendance-orb.active i { color: #22c55e; }
+
+        /* Stats Row */
+        .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 0 15px; }
+        .stat-box { background: white; padding: 15px; border-radius: 20px; text-align: center; }
+        .stat-box span { display: block; font-size: 12px; color: #64748b; }
+        .stat-box b { font-size: 16px; color: #1e293b; }
+
+        /* Bottom Tab Bar */
+        .tab-bar {
+            position: fixed; bottom: 20px; left: 20px; right: 20px;
+            height: 70px; background: #1e293b; border-radius: 25px;
+            display: flex; justify-content: space-around; align-items: center;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2); z-index: 1000;
+        }
+        .tab-item { color: #94a3b8; text-decoration: none; text-align: center; transition: 0.3s; }
+        .tab-item.active { color: white; }
+        .tab-item i { font-size: 20px; display: block; }
+        .tab-item span { font-size: 10px; font-weight: 600; }
+
+        /* Pages */
+        .page { display: none; padding: 10px; animation: fadeIn 0.4s ease; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .btn-full {
+            width: 100%; padding: 16px; border-radius: 16px; border: none;
+            background: var(--primary); color: white; font-weight: 600; font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="loginScreen">
+    <div class="login-box">
+        <div style="width: 80px; height: 80px; background: #eef2ff; border-radius: 24px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
+            <i class="fas fa-fingerprint" style="font-size: 40px; color: var(--primary);"></i>
+        </div>
+        <h1>WorkSync</h1>
+        <p style="color: #64748b; margin-bottom: 30px;">Enter your ID and secure password</p>
+        <input type="text" id="uID" placeholder="Employee ID" style="width:100%; padding:16px; border-radius:16px; border:1px solid #e2e8f0; margin-bottom:15px; font-size:16px;">
+        <input type="password" id="uPass" placeholder="Password" style="width:100%; padding:16px; border-radius:16px; border:1px solid #e2e8f0; margin-bottom:25px; font-size:16px;">
+        <button class="btn-full" onclick="userLogin()">Get Started</button>
+    </div>
+</div>
+
+<div class="app-header">
+    <div class="welcome-text">
+        <p id="greetText">Welcome back,</p>
+        <h2 id="userName">User Name</h2>
+    </div>
+    <div style="width: 45px; height: 45px; border-radius: 15px; background: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 5px 15px rgba(0,0,0,0.05);">
+        <i class="fas fa-bell" style="color: #64748b;"></i>
+    </div>
+</div>
+
+<div id="home" class="page active">
+    <div class="attendance-orb" id="orb" onclick="handleAttendance()">
+        <i class="fas fa-power-off" id="orbIcon"></i>
+        <p id="orbText" style="margin-top:10px; font-weight:700; font-size:12px; color:#64748b;">TAP TO CHECK-IN</p>
+    </div>
+
+    <div class="stats-row">
+        <div class="stat-box"><span>Hours</span><b id="dashHours">0.0</b></div>
+        <div class="stat-box"><span>Overtime</span><b id="dashOT">0.0</b></div>
+        <div class="stat-box"><span>Status</span><b id="dashStatus" style="color:var(--primary)">-</b></div>
+    </div>
+
+    <div class="glass-card" style="margin-top: 25px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0; font-size:16px;">Current Month</h3>
+            <span style="font-size:12px; color:var(--primary); font-weight:700;">Details <i class="fas fa-arrow-right"></i></span>
+        </div>
+    </div>
+</div>
+
+<div id="salary" class="page">
+    <div class="glass-card">
+        <h3 style="margin-top:0">Salary Preview</h3>
+        <div style="display:flex; justify-content:space-between; margin:15px 0;"><span>Basic Pay</span><b id="sBasic">$0</b></div>
+        <div style="display:flex; justify-content:space-between; margin:15px 0;"><span>OT Pay</span><b id="sOT">$0</b></div>
+        <div style="display:flex; justify-content:space-between; margin:15px 0; color:#ef4444;"><span>Deductions</span><b id="sFine">$0</b></div>
+        <hr style="border:0; border-top:1px dashed #cbd5e1;">
+        <div style="display:flex; justify-content:space-between; margin-top:15px; font-size:20px; color:var(--primary);"><span>Take Home</span><b id="sTotal">$0</b></div>
+    </div>
+</div>
+
+<div class="tab-bar">
+    <a href="#" class="tab-item active" onclick="showPage('home', this)"><i class="fas fa-grid-2"></i><span>Home</span></a>
+    <a href="#" class="tab-item" onclick="showPage('salary', this)"><i class="fas fa-wallet"></i><span>Salary</span></a>
+    <a href="#" class="tab-item" onclick="showPage('profile', this)"><i class="fas fa-user"></i><span>Profile</span></a>
+</div>
+
+<script>
+    const SB_URL = "https://qiwhpuqocmwcvkcxjfvf.supabase.co";
+    const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpd2hwdXFvY213Y3ZrY3hqZnZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExNTA3MTksImV4cCI6MjA4NjcyNjcxOX0.eqrNfszVkk9kq_03Cme0vjRo-nJuGdlPNxK_eIsI_Xw";
+    const supabase = lib.supabase.createClient(SB_URL, SB_KEY);
+    let currentUser = null;
+    let isCheckedIn = false;
+
+    async function userLogin() {
+        const id = document.getElementById('uID').value;
+        const pass = document.getElementById('uPass').value;
+        const { data, error } = await supabase.from('employees').select('*').eq('employee_id', id).eq('password', pass).single();
+        
+        if (data) {
+            currentUser = data;
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('userName').innerText = data.name;
+            checkTodayStatus();
+        } else alert("Access Denied!");
+    }
+
+    async function checkTodayStatus() {
+        const today = new Date().toISOString().split('T')[0];
+        const { data } = await supabase.from('attendance').select('*').eq('employee_id', currentUser.employee_id).eq('date', today).single();
+        
+        if (data) {
+            isCheckedIn = !data.check_out;
+            if(isCheckedIn) {
+                updateOrbUI(true);
+            } else if (data.check_out) {
+                document.getElementById('orb').style.opacity = '0.5';
+                document.getElementById('orb').onclick = null;
+                document.getElementById('orbText').innerText = "SHIFT OVER";
+            }
+        }
+    }
+
+    function updateOrbUI(active) {
+        const orb = document.getElementById('orb');
+        const icon = document.getElementById('orbIcon');
+        const text = document.getElementById('orbText');
+        if(active) {
+            orb.classList.add('active');
+            icon.className = "fas fa-stop-circle";
+            icon.style.color = "#22c55e";
+            text.innerText = "TAP TO CHECK-OUT";
+        }
+    }
+
+    async function handleAttendance() {
+        const now = new Date();
+        const today = now.toISOString().split('T')[0];
+        
+        if (!isCheckedIn) {
+            // Check In Logic
+            await supabase.from('attendance').insert([{
+                employee_id: currentUser.employee_id,
+                check_in: now.toISOString(),
+                status: 'Present',
+                date: today
+            }]);
+        } else {
+            // Check Out Logic
+            await supabase.from('attendance').update({ check_out: now.toISOString() })
+            .eq('employee_id', currentUser.employee_id).eq('date', today);
+        }
+        location.reload();
+    }
+
+    function showPage(id, el) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        el.classList.add('active');
+    }
+</script>
+</body>
+</html>
